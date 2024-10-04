@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat IA</title>
+    <style>
+        /* Estilos predefinidos */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            height: 100vh;
+            display: flex;
+            color: #e0e0e0;
+        }
+
+        .chat-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #111111;
+        }
+
+        .chat-header {
+            padding: 1.5rem;
+            background-color: #161616;
+            border-bottom: 1px solid #222222;
+        }
+
+        .chat-header h1 {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            max-width: 80%;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .message.user {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .avatar {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .bot .avatar {
+            background-color: #2d2d2d;
+            color: #ffffff;
+        }
+
+        .user .avatar {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+
+        .message-content {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+
+        .bot .message-content {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        .user .message-content {
+            background-color: #2563eb;
+            color: #ffffff;
+        }
+
+        .input-container {
+            padding: 1.5rem;
+            background-color: #161616;
+            border-top: 1px solid #222222;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .message-input {
+            flex-grow: 1;
+            padding: 0.75rem 1rem;
+            background-color: #1a1a1a;
+            border: 1px solid #333333;
+            border-radius: 0.5rem;
+            color: #ffffff;
+            font-size: 0.9375rem;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .send-button {
+            padding: 0.75rem 1.5rem;
+            background-color: #2563eb;
+            border: none;
+            border-radius: 0.5rem;
+            color: #ffffff;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .send-button:hover {
+            background-color: #1d4ed8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Rodrigo Quantum (R.Q.)</h1>
+        </div>
+        <div class="chat-messages">
+            <div class="message bot">
+                <div class="avatar">AI</div>
+                <div class="message-content">Hola, ¿en qué puedo ayudarte hoy?</div>
+            </div>
+        </div>
+        <div class="input-container">
+            <input type="text" class="message-input" placeholder="Escribe un mensaje...">
+            <button class="send-button">Enviar</button>
+        </div>
+    </div>
+
+    <!-- Incluir el archivo de configuración -->
+    <script src="config.js"></script>
+
+    <script>
+        const messageInput = document.querySelector('.message-input');
+        const sendButton = document.querySelector('.send-button');
+        const chatMessages = document.querySelector('.chat-messages');
+
+        // Asistente para controlar la cantidad de mensajes
+        let isWaitingForResponse = false;
+
+        async function sendToGPT(message) {
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${OPENAI_API_KEY}` // Usa la clave de API desde config.js
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4",
+                        messages: [{ role: "user", content: message }],
+                        max_tokens: 150
+                    })
+                });
+
+                if (response.status === 429) {
+                    return "Demasiadas solicitudes. Intenta nuevamente en unos segundos.";
+                } else if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            } catch (error) {
+                console.error("Error al conectar con GPT: ", error);
+                return "Error al procesar tu mensaje. Por favor, intenta de nuevo más tarde.";
+            }
+        }
+
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            messageDiv.innerHTML = `<div class="avatar">${isUser ? 'Tú' : 'AI'}</div><div class="message-content">${content}</div>`;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function handleSendMessage() {
+            if (isWaitingForResponse) return; // Evitar múltiples solicitudes simultáneas
+            const message = messageInput.value.trim();
+            if (message) {
+                addMessage(message, true);
+                messageInput.value = '';
+                messageInput.focus();
+                isWaitingForResponse = true; // Bloquear otras solicitudes
+                addMessage('AI está escribiendo...', false);
+
+                try {
+                    const response = await sendToGPT(message);
+                    chatMessages.lastElementChild.remove(); // Elimina el mensaje de "escribiendo"
+                    addMessage(response);
+                } catch (error) {
+                    chatMessages.lastElementChild.remove(); // Elimina el mensaje de "escribiendo"
+                    addMessage('Error al procesar tu mensaje. Por favor, intenta de nuevo más tarde.');
+                }
+                isWaitingForResponse = false; // Permitir más solicitudes
+            }
+        }
+
+        sendButton.addEventListener('click', handleSendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
